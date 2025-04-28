@@ -2,6 +2,7 @@ import math
 from PIL import Image
 from PIL.ExifTags import TAGS
 from fractions import Fraction
+from datetime import datetime
 
 def get_exif_info(image_path):
 	"""
@@ -22,6 +23,7 @@ def get_exif_info(image_path):
 		"focal_length": "Unknown",
 		"equivalent_focal_length": "Unknown",
 		"lens_model": "Unknown",
+		"time": "Unknown",
 		# 移除了raw_exif，因为它可能包含无法序列化的值
 	}
     
@@ -122,6 +124,32 @@ def get_exif_info(image_path):
 				if isinstance(lens_model, bytes):
 					lens_model = lens_model.decode('utf-8', errors='replace')
 				result["lens_model"] = lens_model
+
+			# 7. 照片拍摄时间
+			# 首先尝试读取DateTimeOriginal（拍摄原始时间）
+			date_time = exif.get('DateTimeOriginal')
+			
+			# 如果没有DateTimeOriginal，则尝试读取DateTime（文件创建时间）
+			if not date_time:
+				date_time = exif.get('DateTime')
+			
+			# 如果没有DateTime，则尝试读取DateTimeDigitized（数字化时间）
+			if not date_time:
+				date_time = exif.get('DateTimeDigitized')
+				
+			if date_time:
+				# 检查并转换bytes类型
+				if isinstance(date_time, bytes):
+					date_time = date_time.decode('utf-8', errors='replace')
+				
+				# EXIF时间格式通常为 'YYYY:MM:DD HH:MM:SS'
+				try:
+					# 解析时间字符串并格式化
+					dt = datetime.strptime(date_time, '%Y:%m:%d %H:%M:%S')
+					result["time"] = dt.strftime('%Y-%m-%d %H:%M:%S')
+				except ValueError:
+					# 如果解析失败，直接使用原始字符串
+					result["time"] = date_time
 			
 	except Exception as e:
 		result["error"] = str(e)
