@@ -1,163 +1,276 @@
 import os
 import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from PIL import Image, ImageTk, ImageDraw
+from tkinter import ttk, filedialog, messagebox
+from PIL import Image, ImageTk, ImageOps
+import threading
 from metamingle import add_exif_watermark
+import glob
 
-class WatermarkApp:
-	def __init__(self, master):
-		self.master = master
-		self.master.title("MetaMingle")
+class PhotoWatermarkGUI:
+	def __init__(self, root):
+		self.root = root
+		self.root.title("MetaMingle")
+		self.root.geometry("1200x800")
+
+		# Variables
 		self.image_path = None
-		self.logo_path = None
+		self.preview_image = None
+		self.processing = False
+		self.preview_mode = "bottom"  # Default preview mode (bottom or full)
 
-		# 控制區塊在預覽圖下方
-		control_frame = ttk.Frame(master)
-		control_frame.pack(pady=10)
+		# Logo options
+		self.logo_paths = self.get_logo_paths()
+		self.selected_logo = tk.StringVar()
+		if self.logo_paths:
+			self.selected_logo.set(os.path.basename(self.logo_paths[0]))
 
-		# 預覽圖像區（先）
-		preview_w, preview_h = 800, 600
-		placeholder = Image.new("RGB", (preview_w, preview_h), color=(230, 230, 230))
-		draw = ImageDraw.Draw(placeholder)
-		draw.text((preview_w//2 - 100, preview_h//2 - 20), "PIC", fill=(150, 150, 150))
-		photo = ImageTk.PhotoImage(placeholder)
-		self.preview_label = tk.Label(master, image=photo)
-		self.preview_label.image = photo
-		self.preview_label.pack(pady=10)
+		# Parameters
+		self.border_width = tk.IntVar(value=100)
+		self.font_size = tk.IntVar(value=120)
 
-		self.preview_path = "_preview_output.jpg"
+		# Build UI
+		self.create_ui()
+		# Initial placeholder display
+		self.show_placeholder()
 
-		self.control_frame = ttk.Frame(master)
-		self.control_frame.pack(pady=20, padx=20, fill="x")
-
-		# LOGO 下拉 + label
-		ttk.Label(self.control_frame, text="LOGO 選擇：").grid(row=0, column=0, sticky="e", padx=(0, 8), pady=5)
-		self.logo_var = tk.StringVar()
-		self.logo_options = self.load_logo_files()
-		self.logo_combo = ttk.Combobox(self.control_frame, textvariable=self.logo_var, values=self.logo_options, state="readonly", width=30)
-		self.logo_combo.set("請選擇 Logo")
-		self.logo_combo.grid(row=0, column=1, columnspan=2, sticky="we", pady=5)
-		self.logo_combo.bind("<<ComboboxSelected>>", self.on_logo_selected)
-
-		# Logo 大小拉桿（比例）
-		ttk.Label(self.control_frame, text="Logo 大小：").grid(row=4, column=0, sticky="e", padx=(0, 8))
-		self.logo_slider = ttk.Scale(self.control_frame, from_=10, to=100, orient="horizontal", length=200)
-		self.logo_slider.grid(row=4, column=1, sticky="w")
-		self.logo_label = ttk.Label(self.control_frame, text="30%")
-		self.logo_label.grid(row=4, column=2, sticky="w")
-		self.logo_slider.set(30)
-		self.logo_slider.config(command=self.update_logo_label)
-
-		# 選擇圖片按鈕（單獨置中）
-		ttk.Button(self.control_frame, text="📷 選擇照片", command=self.load_image, width=30)\
-			.grid(row=1, column=0, columnspan=3, pady=(10, 15))
-
-		# 邊框寬度（滑桿 + 數值）
-		ttk.Label(self.control_frame, text="邊框寬度：").grid(row=2, column=0, sticky="e", padx=(0, 8))
-		self.border_slider = ttk.Scale(self.control_frame, from_=50, to=300, orient="horizontal", length=200)
-		self.border_slider.grid(row=2, column=1, sticky="w")
-		self.border_label = ttk.Label(self.control_frame, text="100 px")
-		self.border_label.grid(row=2, column=2, sticky="w")
-		self.border_slider.set(100)
-		self.border_slider.config(command=self.update_border_label)
-
-		# 字體大小（滑桿 + 數值）
-		ttk.Label(self.control_frame, text="字體大小：").grid(row=3, column=0, sticky="e", padx=(0, 8))
-		self.font_slider = ttk.Scale(self.control_frame, from_=30, to=200, orient="horizontal", length=200)
-		self.font_slider.grid(row=3, column=1, sticky="w")
-		self.font_label = ttk.Label(self.control_frame, text="60 pt")
-		self.font_label.grid(row=3, column=2, sticky="w")
-		self.font_slider.set(60)
-		self.font_slider.config(command=self.update_font_label)
-
-		# 儲存圖片按鈕（置中）
-		ttk.Button(self.control_frame, text="💾 儲存圖片", command=self.save_output, width=30)\
-			.grid(row=5, column=0, columnspan=3, pady=(20, 0))
-
-	def update_font_label(self, val):
-		self.font_label.config(text=f"{int(float(val))} pt")
-		self.preview()
-
-	def update_border_label(self, val):
-		self.border_label.config(text=f"{int(float(val))} px")
-		self.preview()
-	
-	def update_logo_label(self, val):
-		self.logo_label.config(text=f"{int(float(val))}%")
-		self.preview()
-
-	def load_logo_files(self):
+	def get_logo_paths(self):
 		logo_dir = "./logo"
 		if not os.path.exists(logo_dir):
-			return []
-		return [f for f in os.listdir(logo_dir) if f.lower().endswith(".png")]
+			os.makedirs(logo_dir)
+		return glob.glob(os.path.join(logo_dir, "*.png"))
+
+	def create_ui(self):
+		main = ttk.Frame(self.root, padding=10)
+		main.pack(fill=tk.BOTH, expand=True)
+
+		# Controls panel
+		ctrl = ttk.Frame(main, width=300, padding=10)
+		ctrl.pack(side=tk.LEFT, fill=tk.Y)
+
+		ttk.Label(ctrl, text="Image Processing", font=(None,14,'bold')).pack(anchor=tk.W, pady=(0,10))
+		ttk.Button(ctrl, text="Select Image", command=self.select_image).pack(fill=tk.X, pady=5)
+
+		ttk.Label(ctrl, text="Logo Selection", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
+		combo = ttk.Combobox(ctrl, textvariable=self.selected_logo, state='readonly')
+		combo['values'] = [os.path.basename(p) for p in self.logo_paths] or ['No logos found']
+		combo.pack(fill=tk.X, pady=5)
+		combo.bind('<<ComboboxSelected>>', lambda e: self._on_param_change())
+
+		ttk.Label(ctrl, text="Parameters", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
+		for label,var,minv,maxv in [
+			("Border Width", self.border_width,50,300),
+			("Font Size", self.font_size,60,200)
+		]:
+			ttk.Label(ctrl, text=label).pack(anchor=tk.W)
+			s = ttk.Scale(ctrl, from_=minv, to=maxv, variable=var, orient=tk.HORIZONTAL)
+			s.pack(fill=tk.X, pady=5)
+			s.bind('<ButtonRelease-1>', lambda e: self._on_param_change())
+
+		# Preview template selection
+		ttk.Label(ctrl, text="Preview Template", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
+		preview_buttons = ttk.Frame(ctrl)
+		preview_buttons.pack(fill=tk.X, pady=5)
+
+		# Create a frame for the first row of buttons
+		preview_buttons_row1 = ttk.Frame(preview_buttons)
+		preview_buttons_row1.pack(fill=tk.X, pady=(0, 5))
+		ttk.Button(preview_buttons_row1, text="Bottom Preview", 
+				command=lambda: self.change_preview_mode("bottom")).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0,2))
+		ttk.Button(preview_buttons_row1, text="Full Preview", 
+				command=lambda: self.change_preview_mode("full")).pack(side=tk.RIGHT, expand=True, fill=tk.X, padx=(2,0))
+
+		# Add the Classic button in a second row
+		ttk.Button(preview_buttons, text="Classic", 
+				command=lambda: self.change_preview_mode("classic")).pack(expand=True, fill=tk.X, pady=(5,0))
+
+		ttk.Button(ctrl, text="Generate Preview", command=self.generate_preview).pack(fill=tk.X, pady=(15,5))
+		ttk.Button(ctrl, text="Save Image", command=self.save_image).pack(fill=tk.X, pady=5)
+		self.status_label = ttk.Label(ctrl, text="Ready", foreground='green')
+		self.status_label.pack(anchor=tk.W, pady=(15,0))
+
+		# Preview panel
+		preview_panel = ttk.Frame(main)
+		preview_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+		ttk.Label(preview_panel, text="Preview", font=(None,14,'bold')).pack(anchor=tk.W, pady=(0,10))
+		
+		# 使用標準的 tk.Frame 可以設定 bg
+		canvas_frame = tk.Frame(preview_panel, background='black')
+		canvas_frame.pack(fill=tk.BOTH, expand=True)
+		
+		# 使用白色背景的畫布
+		self.canvas = tk.Canvas(canvas_frame, bg='black', highlightthickness=0)
+		self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+	def change_preview_mode(self, mode):
+		"""Change the preview template mode and update the preview"""
+		self.preview_mode = mode
+		if self.image_path:
+			# 如果已經選擇了圖片，則生成對應模式的預覽
+			self.generate_preview()
+		else:
+			# 如果還沒選擇圖片，只顯示對應的預設圖
+			self.show_placeholder()
+
+	def _on_param_change(self):
+		if self.image_path:
+			self.generate_preview()
+		else:
+			self.show_placeholder()
+
+	def show_placeholder(self):
+		"""Use preview template as placeholder: add border and watermark, then display."""
+		self.canvas.delete('all')
+		
+		# Select template based on current mode
+		template = f'preview_{self.preview_mode}.png'
+		
+		if not os.path.exists(template):
+			self.canvas.create_text(300, 200, text=f'{template} not found', font=(None,20), fill='red')
+			return
+			
+		# Display template directly
+		try:
+			img = Image.open(template)
+			
+			# Calculate canvas dimensions
+			self.canvas.update_idletasks()
+			cw, ch = self.canvas.winfo_width(), self.canvas.winfo_height()
+			
+			# Resize while preserving aspect ratio
+			img_resized = ImageOps.contain(img, (cw, ch), Image.LANCZOS)
+			photo = ImageTk.PhotoImage(img_resized)
+			
+			# Store and display the image
+			self.preview_image = photo
+			self.canvas.create_image(cw//2, ch//2, anchor=tk.CENTER, image=photo)
+			self.update_status(f'Preview template: {template}', 'green')
+		except Exception as e:
+			print('Placeholder error:', e)
+			self.canvas.create_text(300, 200, text='Error loading placeholder', font=(None,20), fill='red')
 
 	def get_selected_logo_path(self):
-		selected = self.logo_var.get()
-		if selected == "請選擇 Logo":
-			return None
-		return os.path.join("logo", selected)
+		"""Return full path of currently selected logo or None if not found."""
+		selected = self.selected_logo.get()
+		for path in self.logo_paths:
+			if os.path.basename(path) == selected:
+				return path
+		return None
 
+	def select_image(self):
+		fp = filedialog.askopenfilename(filetypes=[('Image files','*.jpg *.jpeg *.png')])
+		if not fp: return
+		self.image_path = fp
+		self.update_status(f'Image: {os.path.basename(fp)}')
+		self.generate_preview()
 
-	def load_image(self):
-		self.image_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
-		self.preview()
-
-	def preview(self):
+	def generate_preview(self):
+		"""Generate preview for the selected image."""
 		if not self.image_path:
+			messagebox.showinfo('Info','Select an image first')
 			return
-		border = self.border_slider.get()
-		font_size = self.font_slider.get()
-		logo_path = self.get_selected_logo_path()
-		logo_size_percent = int(self.logo_slider.get())
+		if self.processing: return
+		self.processing = True
+		self.update_status('Generating…','orange')
+		threading.Thread(target=self._process_preview).start()
 
-		add_exif_watermark(
-			self.image_path,
-			output_path=self.preview_path,
-			border_width=border,
-			logo_path=logo_path,
-			font_size=font_size,
-			logo_size_percent=logo_size_percent
-		)
-
-		img = Image.open(self.preview_path)
-		img.thumbnail((800, 600))
-		photo = ImageTk.PhotoImage(img)
-		self.preview_label.configure(image=photo)
-		self.preview_label.image = photo
-
-	def on_logo_selected(self, event=None):
-		self.preview()
-
-	def save_output(self):
-		if not self.image_path:
-			return
-		save_path = filedialog.asksaveasfilename(defaultextension=".jpg", filetypes=[("JPEG", "*.jpg"), ("All files", "*.*")])
-		if save_path:
-			border = self.border_slider.get()
-			font_size = self.font_slider.get()
-			logo_path = self.get_selected_logo_path()
-			logo_size_percent = int(self.logo_slider.get())
+	def _process_preview(self):
+		tmp = os.path.join(os.path.dirname(self.image_path), '_tmp'+os.path.splitext(self.image_path)[1])
+		bw = self.border_width.get()
+		fs = self.font_size.get()
+		logo = self.get_selected_logo_path()
+		
+		# In _process_preview function:
+		# 根據當前預覽模式設定模板樣式
+		if self.preview_mode == "full":
+			template_style = "full_frame"
+		elif self.preview_mode == "classic":
+			template_style = "classic"
+		else:  # bottom mode
+			template_style = "bottom_only"
+		
+		try:
 			add_exif_watermark(
-				self.image_path,
-				output_path=save_path,
-				border_width=border,
-				logo_path=logo_path,
-				font_size=font_size,
-				logo_size_percent=logo_size_percent
+				image_path=self.image_path,
+				output_path=tmp,
+				# border_width=bw,
+				logo_path=logo,
+				# font_size=fs,
+				template_style=template_style  # 使用相應的模板樣式
 			)
-			tk.messagebox.showinfo("完成", f"圖片已儲存至：\n{save_path}")
+			self.display_preview(image_path=tmp)
+			self.update_status('Ready','green')
+		except Exception as e:
+			self.update_status(str(e),'red')
+		finally:
+			self.processing=False
+			if os.path.exists(tmp):
+				try: os.remove(tmp)
+				except: pass
 
+	def update_status(self, msg, color="green"):
+		self.status_label.config(text=msg, foreground=color)
+		self.root.update_idletasks()
 
-if __name__ == "__main__":
-	root = tk.Tk()
-	app = WatermarkApp(root)
+	def display_preview(self, image_path=None, image_obj=None):
+		if image_obj is not None:
+			img = image_obj.copy()
+		elif image_path and os.path.exists(image_path):
+			img = Image.open(image_path)
+		else:
+			return
+			
+		# Calculate canvas dimensions
+		self.canvas.update_idletasks()
+		cw, ch = self.canvas.winfo_width(), self.canvas.winfo_height()
+		
+		# Resize while preserving aspect ratio
+		img_resized = ImageOps.contain(img, (cw, ch), Image.LANCZOS)
+		photo = ImageTk.PhotoImage(img_resized)
+		
+		# Store and display the image
+		self.preview_image = photo
+		self.canvas.delete('all')
+		self.canvas.create_image(cw//2, ch//2, anchor=tk.CENTER, image=photo)
+
+	def save_image(self):
+		if not self.image_path:
+			messagebox.showinfo('Info','Select an image first')
+			return
+		if self.processing: return
+		default = os.path.splitext(os.path.basename(self.image_path))[0]+'_watermarked'+os.path.splitext(self.image_path)[1]
+		sp = filedialog.asksaveasfilename(defaultextension=os.path.splitext(self.image_path)[1], initialfile=default,
+											filetypes=[('PNG','*.png'),('JPEG','*.jpg'),('All','*.*')])
+		if not sp: return
+		self.processing=True
+		self.update_status('Saving…','orange')
+		threading.Thread(target=lambda: self._process_final(sp)).start()
+
+	def _process_final(self, save_path):
+		bw = self.border_width.get()
+		fs = self.font_size.get()
+		logo = self.get_selected_logo_path()
+		
+		# 根據當前預覽模式設定模板樣式
+		template_style = "full_frame" if self.preview_mode == "full" else "bottom_only"
+		
+		try:
+			add_exif_watermark(
+				image_path=self.image_path,
+				output_path=save_path,
+				# border_width=bw,
+				logo_path=logo,
+				# font_size=fs,
+				template_style=template_style  # 使用相應的模板樣式
+			)
+			self.update_status(f'Saved to {os.path.basename(save_path)}','green')
+			messagebox.showinfo('Done',f'Saved:\n{save_path}')
+		except Exception as e:
+			self.update_status(str(e),'red')
+			messagebox.showerror('Error',str(e))
+		finally:
+			self.processing=False
+
+if __name__ == '__main__':
+	root=tk.Tk()
+	app=PhotoWatermarkGUI(root)
 	root.mainloop()
-	style = ttk.Style()
-	style.theme_use("clam")
-	style.configure("TButton", font=("Helvetica", 10), padding=6, relief="flat", background="#f0f0f0")
-	style.configure("TLabel", background="#f0f0f0", font=("Helvetica", 10))
-	style.configure("TFrame", background="#f0f0f0")
-	style.configure("TScale", background="#f0f0f0")
-	
