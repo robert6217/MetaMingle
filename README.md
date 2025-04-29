@@ -2,7 +2,7 @@
 
 This project provides both a Python command-line tool and an interactive GUI for adding customizable white borders and EXIF-based watermarks to images. It supports a larger bottom border to accommodate watermark text and an optional camera logo.
 
-Inspire by https://github.com/7ryo/EXIFframe_maker
+Inspired by https://github.com/7ryo/EXIFframe_maker
 
 ## Features
 
