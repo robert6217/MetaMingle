@@ -16,7 +16,7 @@ class PhotoWatermarkGUI:
 		self.image_path = None
 		self.preview_image = None
 		self.processing = False
-		self.preview_mode = "bottom"  # Default preview mode (bottom or full)
+		self.preview_mode = "classic"  # Default preview mode (bottom or full or classic)
 
 		# Logo options
 		self.logo_paths = self.get_logo_paths()
@@ -93,22 +93,20 @@ class PhotoWatermarkGUI:
 		preview_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 		ttk.Label(preview_panel, text="Preview", font=(None,14,'bold')).pack(anchor=tk.W, pady=(0,10))
 		
-		# 使用標準的 tk.Frame 可以設定 bg
 		canvas_frame = tk.Frame(preview_panel, background='black')
 		canvas_frame.pack(fill=tk.BOTH, expand=True)
 		
-		# 使用白色背景的畫布
 		self.canvas = tk.Canvas(canvas_frame, bg='black', highlightthickness=0)
 		self.canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+		self.change_preview_mode("classic")
 
 	def change_preview_mode(self, mode):
 		"""Change the preview template mode and update the preview"""
 		self.preview_mode = mode
 		if self.image_path:
-			# 如果已經選擇了圖片，則生成對應模式的預覽
 			self.generate_preview()
 		else:
-			# 如果還沒選擇圖片，只顯示對應的預設圖
 			self.show_placeholder()
 
 	def _on_param_change(self):
@@ -195,7 +193,7 @@ class PhotoWatermarkGUI:
 				# border_width=bw,
 				logo_path=logo,
 				# font_size=fs,
-				template_style=template_style  # 使用相應的模板樣式
+				template_style=template_style
 			)
 			self.display_preview(image_path=tmp)
 			self.update_status('Ready','green')
@@ -250,8 +248,12 @@ class PhotoWatermarkGUI:
 		fs = self.font_size.get()
 		logo = self.get_selected_logo_path()
 		
-		# 根據當前預覽模式設定模板樣式
-		template_style = "full_frame" if self.preview_mode == "full" else "bottom_only"
+		if self.preview_mode == "full":
+			template_style = "full_frame"
+		elif self.preview_mode == "classic":
+			template_style = "classic"
+		else:  # bottom mode
+			template_style = "bottom_only"
 		
 		try:
 			add_exif_watermark(
@@ -260,7 +262,7 @@ class PhotoWatermarkGUI:
 				# border_width=bw,
 				logo_path=logo,
 				# font_size=fs,
-				template_style=template_style  # 使用相應的模板樣式
+				template_style=template_style
 			)
 			self.update_status(f'Saved to {os.path.basename(save_path)}','green')
 			messagebox.showinfo('Done',f'Saved:\n{save_path}')

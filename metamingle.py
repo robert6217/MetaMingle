@@ -215,7 +215,7 @@ def add_exif_watermark(image_path, output_path=None, logo_path=None, template_st
 		# Draw separator line
 		separator_y1 = bottom_start_y + padding
 		separator_y2 = bottom_start_y + bottom_height - padding
-		draw.line([(separator_x, separator_y1), (separator_x, separator_y2)], fill=text_color, width=3)
+		draw.line([(separator_x, separator_y1), (separator_x, separator_y2)], fill=text_color, width=2)
 		
 	elif template_style == "bottom_only" or template_style == "full_frame":
 		# Original style code
