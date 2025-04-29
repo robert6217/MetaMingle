@@ -96,7 +96,7 @@ def get_exif_info(image_path):
 				else:
 					try:
 						actual_focal_mm = focal_length
-						equivalent_focal_mm = actual_focal_mm * 1.5  # 默认使用1.5倍系数
+						equivalent_focal_mm = actual_focal_mm * 1.5
 						result["focal_length"] = f"{focal_length}mm"
 						result["equivalent_focal_length"] = f"{math.ceil(equivalent_focal_mm)}mm"
 					except:

@@ -2,85 +2,86 @@ from PIL import Image, ImageDraw, ImageFont
 from exif_api import get_exif_info
 import os
 
-def add_exif_watermark(image_path, output_path=None, logo_path=None, template_style="bottom_only", 
-						text_color=(0, 0, 0), 
-						border_ratio=35,     # 邊框比例 (圖片尺寸除以此值)
-						bottom_ratio=8,   # 底部高度比例 (圖片高度除以此值)
-						font_ratio=5,       # 字體大小比例 (底部高度除以此值)
-						logo_ratio=3.5,      # Logo 大小比例 (底部高度除以此值)
-						padding_ratio=6):   # Logo 和文字間距比例 (底部高度除以此值)
+def add_exif_watermark(image_path, output_path=None, logo_path=None, template_style="bottom_only",
+                        text_color=(0, 0, 0),
+                        border_ratio=35,     # border ratio (image dimension divided by this value)
+                        bottom_ratio=8,      # bottom border height ratio (image height divided by this value)
+                        font_ratio=5,        # font size ratio (bottom border height divided by this value)
+                        logo_ratio=3.5,      # logo size ratio (bottom border height divided by this value)
+                        padding_ratio=6):    # spacing ratio between logo and text (bottom border height divided by this value)
 	"""
-	添加帶有 EXIF 信息的浮水印和按比例縮放的邊框到圖片。
+	Add a watermark containing EXIF information and proportionally scaled borders to an image.
 
 	Args:
-		image_path (str): 輸入圖片文件路徑。
-		output_path (str, optional): 輸出圖片文件路徑。如果未指定，將在原始文件名後添加後綴 "_watermarked"。
-		logo_path (str, optional): 相機 logo a圖片文件路徑。
-		template_style (str, optional): 浮水印模板樣式，可選值為 "full_frame"（四周白框）、"bottom_only"（僅底部白邊）或 "classic"（經典版面）。
-		text_color (tuple, optional): 文字顏色，默認為黑色 (0, 0, 0)。
-		border_ratio (float, optional): 邊框比例，默認為 35 (圖片尺寸的 1/35)。
-		bottom_ratio (float, optional): 底部高度比例，默認為 8 (圖片高度的 1/8)。
-		font_ratio (float, optional): 字體大小比例，默認為 5 (底部高度的 1/5)。
-		logo_ratio (float, optional): Logo 大小比例，默認為 3.5 (底部高度的 1/3.5)。
-		padding_ratio (float, optional): Logo 和文字間距比例，默認為 6 (底部高度的 1/6)。
-		
+		image_path (str): Path to the input image file.
+		output_path (str, optional): Path to the output image file. If not specified, the original filename will have "_watermarked" appended.
+		logo_path (str, optional): Path to the camera logo image file.
+		template_style (str, optional): Watermark template style. Valid options are "full_frame" (white border around the entire image), "bottom_only" (white border only at the bottom), or "classic" (classic layout).
+		text_color (tuple, optional): Text color, default is black (0, 0, 0).
+		border_ratio (float, optional): Border ratio, default is 35 (1/35 of the image dimension).
+		bottom_ratio (float, optional): Bottom border height ratio, default is 8 (1/8 of the image height).
+		font_ratio (float, optional): Font size ratio, default is 5 (1/5 of the bottom border height).
+		logo_ratio (float, optional): Logo size ratio, default is 3.5 (1/3.5 of the bottom border height).
+		padding_ratio (float, optional): Spacing ratio between the logo and text, default is 6 (1/6 of the bottom border height).
+
 	Returns:
-		str: 輸出圖片路徑
+		str: Path to the output image file.
 	"""
-	# 獲取 EXIF 信息
+
+	# Get EXIF information
 	exif_info = get_exif_info(image_path)
 
 	if output_path is None:
 		file_name, file_ext = os.path.splitext(image_path)
 		output_path = f"{file_name}_watermarked1{file_ext}"
 
-	# 打開原始圖片
+	# Open original image
 	img = Image.open(image_path)
 	width, height = img.size
 
-	# 根據圖片大小和比例參數計算實際尺寸
+	# Calculate actual dimensions based on image size and ratio parameters
 	border_width = min(width, height) // border_ratio
 	bottom_height = int(height / bottom_ratio)
 
-	# 根據模板樣式計算新圖片尺寸
+	# Calculate new image dimensions based on template style
 	if template_style == "full_frame":
-		# 全邊框樣式：四周都有白框
+		# Full frame style: white border all around
 		new_width = width + 2 * border_width
 		new_height = height + 2 * border_width + bottom_height
 		img_position = (border_width, border_width)
-		bottom_start_y = height + border_width  # 底部區域開始位置
-	else:  # "bottom_only" 或 "classic"
-		# 僅底部樣式：只有底部有白邊
+		bottom_start_y = height + border_width  # Starting position of bottom area
+	else:  # "bottom_only" or "classic"
+		# Only bottom style: white border only at bottom
 		new_width = width
 		new_height = height + bottom_height
 		img_position = (0, 0)
-		bottom_start_y = height  # 底部區域開始位置
+		bottom_start_y = height  # Starting position of bottom area
 
-	# 創建具有白色背景的新圖片
+	# Create new image with white background
 	new_img = Image.new('RGB', (new_width, new_height), (255, 255, 255))
 
-	# 將原始圖片粘貼到新圖片的適當位置
+	# Paste original image to the appropriate position in new image
 	new_img.paste(img, img_position)
 
-	# 創建繪圖對象
+	# Create drawing object
 	draw = ImageDraw.Draw(new_img)
 
-	# 計算字體大小
+	# Calculate font size
 	font_size = int(bottom_height / font_ratio)
 
-	# 選擇字體
+	# Select font
 	try:
 		font_regular = ImageFont.truetype("./font/Saira_Semi_Condensed/SairaSemiCondensed-Regular.ttf", font_size)
 		font_bold = ImageFont.truetype("./font/Saira_Semi_Condensed/SairaSemiCondensed-Bold.ttf", font_size)
 	except:
-		# 如果出現任何錯誤，使用默認字體
+		# If any error occurs, use default font
 		font_regular = ImageFont.load_default()
 		font_bold = font_regular
 
-	# 計算間距
+	# Calculate padding
 	padding = bottom_height // padding_ratio
 
-	# 獲取EXIF文本信息
+	# Get EXIF text information
 	brand = exif_info['brand']
 	camera_model = exif_info['camera_model']
 	focal_length = exif_info['focal_length']
@@ -89,31 +90,65 @@ def add_exif_watermark(image_path, output_path=None, logo_path=None, template_st
 	iso = exif_info['iso']
 	lens_model = exif_info['lens_model']
 	time_text = exif_info.get('time', 'Unknown')
+	author = exif_info['author']
 
-	# 判斷是否顯示時間
+	# Determine whether to display time
 	# show_time = time_text != 'Unknown'
 
-	# 根據模板樣式繪製不同的布局
+	# Draw different layouts based on template style
 	if template_style == "classic":
-		# 經典模板布局
+		# Classic template layout
 		
-		# 計算底部區域的左右兩側位置
+		# Calculate left and right positions of bottom area
 		bottom_margin = padding
 		left_x = bottom_margin
-		right_area_start_x = int(0.75 * new_width)  # 右半區起始位置
 		
-		# 左側區域 - 第一行：參數信息
+		# Left area - First line: Parameter information
 		param_text = f"{focal_length}  {aperture}  {shutter_speed}  {iso}"
-		left_y = bottom_start_y + 2 * padding
+		left_y = bottom_start_y + 1.5*padding
 		draw.text((left_x, left_y), param_text, font=font_bold, fill=text_color)
 		
-		# 左側區域 - 第二行：時間信息
-		if time_text:
+		# Left area - Second line: Time information
+		if time_text != 'Unknown':
 			time_y = left_y + font_size + padding // 2
 			draw.text((left_x, time_y), time_text, font=font_regular, fill=text_color)
 		
-		# 右側區域
-		# 準備 logo 圖片（如果提供）
+		# Calculate parameter text width for subsequent layout
+		try:
+			param_text_width = draw.textlength(param_text, font=font_bold)
+			time_text_width = draw.textlength(time_text, font=font_regular) if time_text != 'Unknown' else 0
+		except AttributeError:
+			# For older versions of PIL
+			param_text_width = font_bold.getlength(param_text)
+			time_text_width = font_regular.getlength(time_text) if time_text != 'Unknown' else 0
+			
+		max_text_width = max(param_text_width, time_text_width)
+		left_text_space = max_text_width + 2 * padding
+		
+		# Check if lens information exists
+		has_lens_info = lens_model != "Unknown"
+		
+		# Calculate camera information text to measure width
+		camera_text = f"{brand} {camera_model}"
+		
+		# Measure text width
+		try:
+			camera_text_width = draw.textlength(camera_text, font=font_bold)
+			lens_text_width = draw.textlength(lens_model, font=font_regular) if has_lens_info else 0
+			max_camera_width = max(camera_text_width, lens_text_width)
+		except AttributeError:
+			camera_text_width = font_bold.getlength(camera_text)
+			lens_text_width = font_regular.getlength(lens_model) if has_lens_info else 0
+			max_camera_width = max(camera_text_width, lens_text_width)
+		
+		# Calculate right margin same as left margin
+		right_margin = bottom_margin
+		
+		# Calculate right position of camera info based on right margin
+		camera_right_x = new_width - right_margin
+		camera_x = camera_right_x - max_camera_width
+		
+		# Prepare logo image (if provided)
 		logo_height = 0
 		logo_width = 0
 		
@@ -121,127 +156,128 @@ def add_exif_watermark(image_path, output_path=None, logo_path=None, template_st
 			try:
 				logo = Image.open(logo_path).convert("RGBA")
 				
-				# 計算 logo 的適當尺寸（高度為底部區域的一定比例）
-				logo_max_height = int(bottom_height / logo_ratio)
+				# Calculate appropriate size for logo (height as a proportion of bottom area)
+				# Increase logo size (2.5 instead of original 3.5)
+				logo_max_height = int(bottom_height/1.5)
 				logo_ratio_size = logo_max_height / logo.height
 				logo_new_width = int(logo.width * logo_ratio_size)
 				logo_new_height = logo_max_height
 				
-				# 調整 logo 大小
+				# Resize logo
 				logo = logo.resize((logo_new_width, logo_new_height), Image.LANCZOS)
 				
-				# 計算 logo 位置 - 置於右側區域
-				logo_x = right_area_start_x
-				logo_y = bottom_start_y + 2 * padding  # 從底部區域開始的位置再偏移
+				# Calculate logo position
+				# First determine the leftmost position of camera info
+				camera_left_x = camera_x
 				
-				# 粘貼 logo
+				# Minimum required spacing
+				min_separator_distance = padding * 2
+				
+				# The right edge of logo should be to the left of camera info left edge minus spacing
+				logo_right_x = camera_left_x - min_separator_distance
+				
+				# Calculate the left edge position of logo from right to left
+				logo_x = int(logo_right_x - logo_new_width)  # Convert to integer
+				
+				# Ensure logo doesn't overlap with left side text
+				min_logo_x = int(left_text_space + padding)  # Convert to integer
+				logo_x = max(logo_x, min_logo_x)
+				
+				# Center logo vertically in bottom area
+				logo_y = bottom_start_y + (bottom_height - logo_new_height) // 2
+				
+				# Paste logo
 				if logo.mode == 'RGBA':
-					# 如果有透明通道，需要特殊處理
+					# Special handling for transparent channel
 					new_img.paste(logo, (logo_x, logo_y), logo)
 				else:
 					new_img.paste(logo, (logo_x, logo_y))
 					
 				logo_width = logo_new_width
 				logo_height = logo_new_height
-				
+		
 			except Exception as e:
-				print(f"添加 logo 時出錯: {str(e)}")
+				print(f"Error adding logo: {str(e)}")
 				logo_width = 0
 				logo_height = 0
 		
-		# 繪製分隔線
-		separator_x = right_area_start_x + logo_width + padding//2
+		# Draw camera information
+		text_width = lens_text_width if lens_text_width > 0 else font_regular.getlength(author)
+		lens_x = camera_right_x - text_width
+		lens_y = left_y + font_size + padding // 2
+		line2_text = lens_model if has_lens_info and lens_model != "Unknow" else author
+		draw.text((camera_x, left_y), camera_text, font=font_bold, fill=text_color)
+		draw.text((lens_x, lens_y), line2_text, font=font_regular, fill=text_color)
+		
+		# Set separator line position
+		separator_x = camera_x - padding
+
+		# Draw separator line
 		separator_y1 = bottom_start_y + padding
 		separator_y2 = bottom_start_y + bottom_height - padding
-		draw.line([(separator_x, separator_y1), (separator_x, separator_y2)], fill=text_color, width=2)
-		
-		# 繪製相機信息
-		camera_x = separator_x + padding//2
-		camera_y = separator_y1
-		
-		# 檢查是否有鏡頭信息
-		has_lens_info = lens_model != "Unknown"
-		
-		if has_lens_info:
-			# 有鏡頭信息時，顯示品牌和相機型號在第一行，鏡頭信息在第二行
-			camera_text = f"{brand} {camera_model}"
-			draw.text((camera_x, camera_y), camera_text, font=font_bold, fill=text_color)
-			
-			lens_y = camera_y + font_size + padding // 2
-			draw.text((camera_x, lens_y), lens_model, font=font_regular, fill=text_color)
-		else:
-			# 無鏡頭信息時，居中顯示品牌和相機型號
-			camera_text = f"{brand} {camera_model}"
-			draw.text((camera_x, logo_y), camera_text, font=font_bold, fill=text_color)
+		draw.line([(separator_x, separator_y1), (separator_x, separator_y2)], fill=text_color, width=3)
 		
 	elif template_style == "bottom_only" or template_style == "full_frame":
-		# 原始樣式的代碼
+		# Original style code
 
-		# 準備 logo 圖片（如果提供）
+		# Prepare logo image (if provided)
 		logo_height = 0
 		if logo_path and os.path.exists(logo_path):
 			try:
 				logo = Image.open(logo_path).convert("RGBA")
 				
-				# 計算 logo 的適當尺寸（高度為底部區域的一定比例）
+				# Calculate appropriate size for logo (height as a proportion of bottom area)
 				logo_max_height = int(bottom_height / logo_ratio)
 				logo_ratio_size = logo_max_height / logo.height
 				logo_new_width = int(logo.width * logo_ratio_size)
 				logo_new_height = logo_max_height
 				
-				# 調整 logo 大小
+				# Resize logo
 				logo = logo.resize((logo_new_width, logo_new_height), Image.LANCZOS)
 				
-				# 計算 logo 位置 - 置於底部區域的上方
+				# Calculate logo position - place at the top of bottom area
 				logo_x = int((new_width - logo_new_width) // 2)
-				logo_y = bottom_start_y + padding  # 從底部區域開始的位置再偏移
+				logo_y = bottom_start_y + padding  # Offset from starting position of bottom area
 				
-				# 粘貼 logo
+				# Paste logo
 				if logo.mode == 'RGBA':
-					# 如果有透明通道，需要特殊處理
+					# Special handling for transparent channel
 					new_img.paste(logo, (logo_x, logo_y), logo)
 				else:
 					new_img.paste(logo, (logo_x, logo_y))
 					
-				logo_height = logo_new_height + padding/2  # 增加間距
+				logo_height = logo_new_height + padding/2  # Add spacing
 				
 			except Exception as e:
-				print(f"添加 logo 時出錯: {str(e)}")
+				print(f"Error adding logo: {str(e)}")
 				logo_height = 0
 
-		# 準備 EXIF 文本
 		shot_text = "Shot on "
 		camera_model_text = camera_model
 		line2 = f"{focal_length}  {aperture}  {shutter_speed}  {iso}"
 		
-		# 計算文本位置 - 基於底部開始位置和 logo 高度
 		if logo_height > 0:
 			text_y = bottom_start_y + logo_height + padding
 		else:
-			text_y = bottom_start_y + padding * 2  # 無 logo 時加倍間距
+			text_y = bottom_start_y + padding * 2  # Double the padding when no logo is provided
 
-		# 繪製相機型號文本 - 第一行
-		# 拆分並分別測量 "Shot on" 和相機型號的寬度，以便分別用不同字體渲染
+		# Draw camera model text - first line
+		# Split and separately measure the widths of "Shot on" and the camera model so they can be rendered with different fonts
 		try:
 			shot_text_width = draw.textlength(shot_text, font=font_regular)
 			camera_model_width = draw.textlength(camera_model_text, font=font_bold)
 			total_width = shot_text_width + camera_model_width
 		except AttributeError:
-			# 對於舊版本的 PIL，textlength 可能不可用
 			shot_text_width = font_regular.getlength(shot_text)
 			camera_model_width = font_bold.getlength(camera_model_text)
 			total_width = shot_text_width + camera_model_width
 
-		# 計算文本起始位置以使整體居中
 		text_start_x = (new_width - total_width) / 2
 
-		# 繪製 "Shot on" 文本
 		draw.text((text_start_x, text_y), shot_text, font=font_regular, fill=text_color)
 
-		# 繪製相機型號文本（粗體）
 		draw.text((text_start_x + shot_text_width, text_y), camera_model_text, font=font_bold, fill=text_color)
 
-		# 繪製第二行
 		text_y += font_size + padding // 2
 
 		try:
@@ -251,7 +287,6 @@ def add_exif_watermark(image_path, output_path=None, logo_path=None, template_st
 
 		draw.text(((new_width - text_width) / 2, text_y), line2, font=font_regular, fill=text_color)
 
-	# 保存輸出圖片
 	new_img.save(output_path)
 
 	return output_path
@@ -260,32 +295,59 @@ if __name__ == "__main__":
 	import sys
 	import argparse
 
-	parser = argparse.ArgumentParser(description='為照片添加 EXIF 浮水印')
-	parser.add_argument('image_path', help='輸入圖片路徑')
-	parser.add_argument('-o', '--output', help='輸出圖片路徑')
-	parser.add_argument('-l', '--logo', help='相機 logo 圖片路徑')
-	parser.add_argument('-t', '--template', choices=['full_frame', 'bottom_only', 'classic'], 
-						default='bottom_only', help='浮水印模板樣式')
-	parser.add_argument('-br', '--border-ratio', type=float, default=35, 
-						help='邊框比例 (圖片尺寸除以此值)')
-	parser.add_argument('-bh', '--bottom-ratio', type=float, default=8, 
-						help='底部高度比例 (圖片高度除以此值)')
-	parser.add_argument('-fr', '--font-ratio', type=float, default=5, 
-						help='字體大小比例 (底部高度除以此值)')
-	parser.add_argument('-lr', '--logo-ratio', type=float, default=3.5, 
-						help='Logo 大小比例 (底部高度除以此值)')
-	parser.add_argument('-pr', '--padding-ratio', type=float, default=6, 
-						help='間距比例 (底部高度除以此值)')
-	parser.add_argument('-c', '--color', type=str, default='0,0,0', 
-						help='文字顏色 (RGB 格式，用逗號分隔，例如: 0,0,0)')
+	parser = argparse.ArgumentParser(description='Add an EXIF watermark to a photo')
+	parser.add_argument('image_path', help='Path to the input image')
+	parser.add_argument('-o', '--output', help='Path to the output image')
+	parser.add_argument('-l', '--logo', help='Path to the camera logo image')
+	parser.add_argument(
+		'-t', '--template',
+		choices=['full_frame', 'bottom_only', 'classic'],
+		default='bottom_only',
+		help='Watermark template style: "full_frame", "bottom_only", or "classic"'
+	)
+	parser.add_argument(
+		'-br', '--border-ratio',
+		type=float,
+		default=35,
+		help='Border ratio (image dimension divided by this value)'
+	)
+	parser.add_argument(
+		'-bh', '--bottom-ratio',
+		type=float,
+		default=8,
+		help='Bottom border height ratio (image height divided by this value)'
+	)
+	parser.add_argument(
+		'-fr', '--font-ratio',
+		type=float,
+		default=5,
+		help='Font size ratio (bottom border height divided by this value)'
+	)
+	parser.add_argument(
+		'-lr', '--logo-ratio',
+		type=float,
+		default=3.5,
+		help='Logo size ratio (bottom border height divided by this value)'
+	)
+	parser.add_argument(
+		'-pr', '--padding-ratio',
+		type=float,
+		default=6,
+		help='Spacing ratio between logo and text (bottom border height divided by this value)'
+	)
+	parser.add_argument(
+		'-c', '--color',
+		type=str,
+		default='0,0,0',
+		help='Text color in RGB format, comma-separated (e.g., "0,0,0")'
+	)
 
 	args = parser.parse_args()
 
-	# 解析文字顏色
 	try:
 		text_color = tuple(map(int, args.color.split(',')))
 	except:
-		text_color = (0, 0, 0)  # 默認黑色
+		text_color = (0, 0, 0)  # black by default
 
 	result = add_exif_watermark(
 		args.image_path, 
@@ -300,4 +362,4 @@ if __name__ == "__main__":
 		padding_ratio=args.padding_ratio
 	)
 
-	print(f"已創建帶有浮水印的圖片: {result}")
+	print(f"Watermarked image created: {result}")
