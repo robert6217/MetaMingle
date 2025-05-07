@@ -56,15 +56,16 @@ class PhotoWatermarkGUI:
 		combo.pack(fill=tk.X, pady=5)
 		combo.bind('<<ComboboxSelected>>', lambda e: self._on_param_change())
 
-		ttk.Label(ctrl, text="Parameters", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
-		for label,var,minv,maxv in [
-			("Border Width", self.border_width,50,300),
-			("Font Size", self.font_size,60,200)
-		]:
-			ttk.Label(ctrl, text=label).pack(anchor=tk.W)
-			s = ttk.Scale(ctrl, from_=minv, to=maxv, variable=var, orient=tk.HORIZONTAL)
-			s.pack(fill=tk.X, pady=5)
-			s.bind('<ButtonRelease-1>', lambda e: self._on_param_change())
+		# Uncomment the following lines if you want to add sliders for border width and font size
+		# ttk.Label(ctrl, text="Parameters", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
+		# for label,var,minv,maxv in [
+		# 	("Border Width", self.border_width,50,300),
+		# 	("Font Size", self.font_size,60,200)
+		# ]:
+		# 	ttk.Label(ctrl, text=label).pack(anchor=tk.W)
+		# 	s = ttk.Scale(ctrl, from_=minv, to=maxv, variable=var, orient=tk.HORIZONTAL)
+		# 	s.pack(fill=tk.X, pady=5)
+		# 	s.bind('<ButtonRelease-1>', lambda e: self._on_param_change())
 
 		# Preview template selection
 		ttk.Label(ctrl, text="Preview Template", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
@@ -72,16 +73,17 @@ class PhotoWatermarkGUI:
 		preview_buttons.pack(fill=tk.X, pady=5)
 
 		# Create a frame for the first row of buttons
-		preview_buttons_row1 = ttk.Frame(preview_buttons)
-		preview_buttons_row1.pack(fill=tk.X, pady=(0, 5))
-		ttk.Button(preview_buttons_row1, text="Bottom Preview", 
-				command=lambda: self.change_preview_mode("bottom")).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0,2))
-		ttk.Button(preview_buttons_row1, text="Full Preview", 
-				command=lambda: self.change_preview_mode("full")).pack(side=tk.RIGHT, expand=True, fill=tk.X, padx=(2,0))
+		ttk.Button(preview_buttons, text="Bottom Preview", 
+				command=lambda: self.change_preview_mode("bottom")).pack(expand=True, fill=tk.X, pady=(5,0))
+		
+		ttk.Button(preview_buttons, text="Full Preview", 
+				command=lambda: self.change_preview_mode("full")).pack(expand=True, fill=tk.X, pady=(5,0))
 
 		# Add the Classic button in a second row
 		ttk.Button(preview_buttons, text="Classic", 
 				command=lambda: self.change_preview_mode("classic")).pack(expand=True, fill=tk.X, pady=(5,0))
+		
+		ttk.Label(ctrl, text="Operation", font=(None,12)).pack(anchor=tk.W, pady=(10,5))
 
 		ttk.Button(ctrl, text="Generate Preview", command=self.generate_preview).pack(fill=tk.X, pady=(15,5))
 		ttk.Button(ctrl, text="Save Image", command=self.save_image).pack(fill=tk.X, pady=5)
