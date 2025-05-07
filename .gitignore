@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 *.env
 *.jpg
+*.JPEG
+*.png
 .DS_Store

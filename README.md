@@ -1,122 +1,128 @@
-# Image Watermarker with EXIF Information and White Border
+# MetaMingle - Photo Watermarking Tool with EXIF Information
 
-This project provides both a Python command-line tool and an interactive GUI for adding customizable white borders and EXIF-based watermarks to images. It supports a larger bottom border to accommodate watermark text and an optional camera logo.
-
-Inspired by https://github.com/7ryo/EXIFframe_maker
+MetaMingle is a powerful Python application for adding professional watermarks with EXIF information to your photos. It extracts camera metadata automatically and offers both command-line and GUI interfaces for maximum flexibility.
 
 ## Features
 
-- **Command-Line Mode**: Use `new_metamingle.py` for scriptable batch processing.
-- **Interactive GUI**: Launch `gui.py` to visually adjust parameters and preview results in real time.
-- **White Borders**: Configure full-frame or bottom-only borders with proportional sizing.
-- **EXIF Watermark**: Automatically extract camera metadata (model, focal length, aperture, shutter speed, ISO) and render it as centered text.
-- **Camera Logo**: Optionally embed a logo image above the watermark text.
-- **Custom Fonts & Colors**: Specify font files, sizes, and RGB text color.
+- **Multiple Template Styles**: Choose from three layouts:
+  - **Bottom Only**: Clean white border at the bottom
+  - **Full Frame**: Elegant white border around the entire image
+  - **Classic**: Professional layout with parameters on the left and camera info on the right
+- **EXIF Information Extraction**: Automatically pulls camera metadata including:
+  - Camera brand and model
+  - Lens information
+  - Aperture, shutter speed, ISO
+  - Focal length
+  - Capture date/time
+- **Custom Logo Support**: Add your favorite camera brand logos
+- **Proportional Sizing**: All elements scale proportionally based on image dimensions
+- **User-Friendly GUI**: Visual previews and intuitive controls
+- **Command-Line Interface**: Perfect for batch processing and automation
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourname/image-watermarker.git
-   cd image-watermarker
+   git clone https://github.com/yourusername/metamingle.git
+   cd metamingle
    ```
 
-2. (Optional) Create and activate a virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate   # Linux/macOS
-   venv\\Scripts\\activate  # Windows
-   ```
-
-3. Install dependencies:
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-   The `requirements.txt` should include:
-   ```text
-   Pillow
-   piexif
+4. Add your camera logos: (optional)
    ```
-
-   Ensure `tkinter` is available for the GUI (usually included with Python).
+   # Place PNG files in the logo directory
+   ```
 
 ## Usage
 
-### 1. Command-Line Interface (`new_metamingle.py`)
+### GUI Interface
 
-Process images via terminal using proportional parameters:
-
-```bash
-python new_metamingle.py IMAGE_PATH \
-  [-o OUTPUT_PATH] \
-  [-l LOGO_PATH] \
-  [-t {full_frame,bottom_only}] \
-  [--border-ratio FLOAT] \
-  [--bottom-ratio FLOAT] \
-  [--font-ratio FLOAT] \
-  [--logo-ratio FLOAT] \
-  [--padding-ratio FLOAT] \
-  [--color R,G,B]
-```
-
-- **IMAGE_PATH**: Input image file (required).
-- **-o, --output**: Output file path (default: appends `_watermarked`).
-- **-l, --logo**: Camera logo PNG file to embed.
-- **-t, --template**: `full_frame` for all-around border or `bottom_only` (default).
-- **--border-ratio**: Inverse proportional factor for border thickness (default: 35).
-- **--bottom-ratio**: Inverse for bottom border height (default: 8).
-- **--font-ratio**: Inverse for font size relative to bottom height (default: 5).
-- **--logo-ratio**: Inverse for logo height relative to bottom (default: 3.5).
-- **--padding-ratio**: Inverse for spacing between logo and text (default: 6).
-- **--color**: Text color as `R,G,B` (default: `0,0,0`).
-
-**Example**:
-```bash
-python new_metamingle.py photos/IMG_001.jpg \
-  -l logo/camera.png \
-  -t full_frame \
-  --color 255,255,255
-```
-
-### 2. Interactive GUI (`gui.py`)
-
-Launch the graphical interface to load an image, tweak settings, and preview:
+Run the graphical user interface for interactive watermarking:
 
 ```bash
-python gui.py
+python metamingle_gui.py
 ```
 
 The GUI provides:
 
-- **Select Image**: Choose any jpg, JPEG or PNG file.
-- **Logo Selection**: Dropdown of `./logo/*.png` files.
-- **Border Width**: Slider (50–300 px).
-- **Font Size**: Slider (60–200 pt).
-- **Generate Preview**: Render current settings on canvas.
-- **Save Image**: Export final watermark image to chosen path.
-- **Status**: Displays processing or error messages.
+- Image selection
+- Logo selection dropdown
+- Preview template options (Bottom, Full Frame, Classic)
+- Preview generation
+- Image saving with custom filename
 
-## Configuration and Assets
+### Command-Line Interface
 
-- **Logo Folder**: Place `.png` logos in `./logo/` to have them listed in the GUI.
-- **Fonts**: Default fonts are under `./font/Saira_Semi_Condensed/`. You may specify others via CLI.
+For batch processing or scripting, use the command-line interface:
 
-## Dependencies
+```bash
+python metamingle.py IMAGE_PATH [OPTIONS]
+```
 
-- Python 3.7+ with `tkinter` support
-- [Pillow](https://pypi.org/project/Pillow/)
-- [piexif](https://pypi.org/project/piexif/) (or compatible EXIF API library)
+#### Options:
+
+- `-o, --output`: Output file path
+- `-l, --logo`: Path to the camera logo image
+- `-t, --template`: Watermark template style (`full_frame`, `bottom_only`, or `classic`)
+- `-br, --border-ratio`: Border ratio (default: 35)
+- `-bh, --bottom-ratio`: Bottom border height ratio (default: 8)
+- `-fr, --font-ratio`: Font size ratio (default: 5)
+- `-lr, --logo-ratio`: Logo size ratio (default: 3.5)
+- `-pr, --padding-ratio`: Spacing ratio (default: 6)
+- `-c, --color`: Text color in RGB format (default: "0,0,0")
+
+#### Example:
+
+```bash
+python metamingle.py photo.jpg -l logo/canon.png -t classic -c "0,0,0"
+```
+
+## Configuration Details
+
+### Ratio Parameters
+
+All dimensions are calculated proportionally to ensure consistent visual appeal:
+
+- **Border Ratio**: Controls the width of borders (smaller value = thicker border)
+- **Bottom Ratio**: Controls the height of the bottom area (smaller value = taller area)
+- **Font Ratio**: Controls text size relative to bottom height
+- **Logo Ratio**: Controls logo size relative to bottom height
+- **Padding Ratio**: Controls spacing between elements
+
+### Folder Structure
+
+- `./logo/`: Place your camera logo PNG files here
+- `./font/Saira_Semi_Condensed/`: Contains the fonts for text rendering:
+  - `SairaSemiCondensed-Regular.ttf`
+  - `SairaSemiCondensed-Bold.ttf`
+
+## EXIF Information Extraction
+
+The tool extracts the following EXIF data:
+
+- Camera make and model
+- Lens model
+- Aperture (f-stop)
+- Shutter speed
+- ISO sensitivity
+- Focal length
+- Capture date and time
+- Artist/author information
+
+## TODO List
+Next improvements planned for MetaMingle:
+
+1. Package as standalone .exe file for easier distribution
+2. Add support for user-updatable fonts
+3. Implement flexible border size adjustment
 
 ## Contributing
 
-Feel free to submit issues and pull requests:
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feature/xyz`
-3. Commit and push your changes
-4. Open a Pull Request
+Contributions are welcome! Feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
-
+This project is licensed under the MIT License.
