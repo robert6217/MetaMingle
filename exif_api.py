@@ -4,6 +4,56 @@ from PIL.ExifTags import TAGS
 from fractions import Fraction
 from datetime import datetime
 
+EXIF_IFD_POINTER = 0x8769
+
+def _to_text(value):
+	"""Convert an EXIF value to a clean string (handles bytes and NUL padding)."""
+	if isinstance(value, bytes):
+		value = value.decode('utf-8', errors='replace')
+	return str(value).replace('\x00', '').strip()
+
+def _to_fraction(value):
+	"""Convert an EXIF rational (IFDRational, (num, den) tuple or number) to a Fraction, or None."""
+	try:
+		if isinstance(value, tuple):
+			if len(value) != 2:
+				return None
+			return Fraction(int(value[0]), int(value[1]))
+		numerator = getattr(value, 'numerator', None)
+		denominator = getattr(value, 'denominator', None)
+		if numerator is not None and denominator is not None:
+			return Fraction(int(numerator), int(denominator))
+		return Fraction(str(float(value))).limit_denominator(100000)
+	except (ZeroDivisionError, ValueError, TypeError, OverflowError):
+		return None
+
+def _format_number(value):
+	"""Format a number without a trailing '.0' (4.0 -> '4', 2.8 -> '2.8')."""
+	return f"{round(float(value), 1):g}"
+
+def _format_shutter(fraction):
+	"""Format an exposure time: 1/200s for fast speeds, 2.5s for long exposures."""
+	if fraction >= 1:
+		return f"{_format_number(fraction)}s"
+	if fraction.numerator == 1:
+		return f"1/{fraction.denominator}s"
+	reciprocal = 1 / fraction
+	if reciprocal >= 4:
+		return f"1/{round(reciprocal)}s"
+	return f"{_format_number(fraction)}s"
+
+def _read_exif(image):
+	"""Return a {tag name: value} dict merging the main IFD and the Exif sub-IFD."""
+	raw = image.getexif()
+	if not raw:
+		return {}
+	merged = dict(raw)
+	try:
+		merged.update(raw.get_ifd(EXIF_IFD_POINTER))
+	except Exception:
+		pass
+	return {TAGS.get(tag_id, tag_id): value for tag_id, value in merged.items()}
+
 def get_exif_info(image_path):
 	"""
 	Extract EXIF information from an image and return photographic parameters as a dictionary.
@@ -27,122 +77,81 @@ def get_exif_info(image_path):
 		"author": "@robbb",
 		# Removed raw_exif because it may contain non-serializable values
 	}
-    
+
 	try:
-		image = Image.open(image_path)
-		
-		# Check if there is any EXIF data
-		if hasattr(image, '_getexif') and image._getexif() is not None:
-			exif_data = image._getexif()
-			
-			# Convert numeric tags to human-readable tag names
-			exif = {TAGS.get(tag_id, tag_id): value for tag_id, value in exif_data.items()}
-			
-			# 1. Aperture (F-Number)
-			aperture = exif.get('FNumber')
-			if aperture:
-				result["aperture"] = f"f/{aperture}"
-			
-			# 2. Shutter Speed (Exposure Time) — convert to fractional seconds format
-			shutter = exif.get('ExposureTime')
-			if shutter:
-				if isinstance(aperture, tuple) and len(shutter) == 2:
-					numerator, denominator = shutter
-					fraction = Fraction(numerator, denominator)
-					result["shutter_speed"] = f"{fraction}s"
-				else:
-					try:
-						fraction = Fraction(str(shutter)).limit_denominator()
-						result["shutter_speed"] = f"{fraction}s"
-					except:
-						result["shutter_speed"] = f"{shutter}s"
-			
-			# 3. ISO Sensitivity
-			iso = exif.get('ISOSpeedRatings')
-			if iso is not None:
-				result["iso"] = f"ISO{iso}"
-			
-			# 4. Camera Information
-			make = exif.get('Make', '')
-			if isinstance(make, bytes):
-				make = make.decode('utf-8', errors='replace')
-			
-			if make:
-				result["brand"] = f"{make}"
-				
-			model = exif.get('Model', '')
-			if isinstance(model, bytes):
-				model = model.decode('utf-8', errors='replace')
-				
-			if model:
-				result["camera_model"] = f"{model}"
-			
-			# 5. Lens Focal Length (including equivalent full-frame focal length)
-			focal_length = int(exif.get('FocalLength'))
-			if focal_length:
-				if isinstance(focal_length, tuple) and len(focal_length) == 2:
-					actual_focal_mm = focal_length[0] / focal_length[1]
-					
-					crop_factor = 1.5 # Default to a 1.5× crop factor for Sony/Nikon/Fuji
-					
-					if make and isinstance(make, str):
-						if 'canon' in make.lower():
-							crop_factor = 1.6
-					
-					equivalent_focal_mm = actual_focal_mm * crop_factor
-					
-					result["focal_length"] = f"{actual_focal_mm}mm"
-					result["equivalent_focal_length"] = f"{equivalent_focal_mm:.1f}mm"
-				else:
-					try:
-						actual_focal_mm = focal_length
-						equivalent_focal_mm = actual_focal_mm * 1.5
-						result["focal_length"] = f"{focal_length}mm"
-						result["equivalent_focal_length"] = f"{math.ceil(equivalent_focal_mm)}mm"
-					except:
-						result["focal_length"] = f"{focal_length}"
-			
-			# 6. Lens Model
-			lens_model = exif.get('LensModel')
-			if not lens_model:
-				lens_model = exif.get('LensInfo', exif.get('Lens'))
-			
+		with Image.open(image_path) as image:
+			exif = _read_exif(image)
+
+		if not exif:
+			return result
+
+		# 1. Aperture (F-Number)
+		aperture = _to_fraction(exif.get('FNumber'))
+		if aperture:
+			result["aperture"] = f"f/{_format_number(aperture)}"
+
+		# 2. Shutter Speed (Exposure Time) — convert to fractional seconds format
+		shutter = _to_fraction(exif.get('ExposureTime'))
+		if shutter:
+			result["shutter_speed"] = _format_shutter(shutter)
+
+		# 3. ISO Sensitivity
+		iso = exif.get('ISOSpeedRatings', exif.get('PhotographicSensitivity'))
+		if isinstance(iso, (tuple, list)):
+			iso = iso[0] if iso else None
+		if iso is not None:
+			result["iso"] = f"ISO{iso}"
+
+		# 4. Camera Information
+		make = _to_text(exif.get('Make', ''))
+		if make:
+			result["brand"] = make
+
+		model = _to_text(exif.get('Model', ''))
+		if model:
+			result["camera_model"] = model
+
+		# 5. Lens Focal Length (including equivalent full-frame focal length)
+		focal_length = _to_fraction(exif.get('FocalLength'))
+		if focal_length:
+			result["focal_length"] = f"{_format_number(focal_length)}mm"
+
+			equivalent = exif.get('FocalLengthIn35mmFilm')
+			if isinstance(equivalent, (int, float)) and equivalent > 0:
+				result["equivalent_focal_length"] = f"{_format_number(equivalent)}mm"
+			else:
+				# Default to a 1.5× crop factor for Sony/Nikon/Fuji, 1.6× for Canon
+				crop_factor = 1.6 if 'canon' in make.lower() else 1.5
+				result["equivalent_focal_length"] = f"{math.ceil(float(focal_length) * crop_factor)}mm"
+
+		# 6. Lens Model
+		lens_model = exif.get('LensModel') or exif.get('LensInfo') or exif.get('Lens')
+		if lens_model and isinstance(lens_model, (str, bytes)):
+			lens_model = _to_text(lens_model)
 			if lens_model:
-				if isinstance(lens_model, bytes):
-					lens_model = lens_model.decode('utf-8', errors='replace')
 				result["lens_model"] = lens_model
 
-			# 7. Photo Capture Time
-			date_time = exif.get('DateTimeOriginal')
-			
-			if not date_time:
-				date_time = exif.get('DateTime')
-			
-			if not date_time:
-				date_time = exif.get('DateTimeDigitized')
-				
-			if date_time:
-				if isinstance(date_time, bytes):
-					date_time = date_time.decode('utf-8', errors='replace')
-				
-				try:
-					dt = datetime.strptime(date_time, '%Y:%m:%d %H:%M:%S')
-					result["time"] = dt.strftime('%Y-%m-%d %H:%M:%S')
-				except ValueError:
+		# 7. Photo Capture Time
+		date_time = exif.get('DateTimeOriginal') or exif.get('DateTime') or exif.get('DateTimeDigitized')
+		if date_time:
+			date_time = _to_text(date_time)
+			try:
+				dt = datetime.strptime(date_time, '%Y:%m:%d %H:%M:%S')
+				result["time"] = dt.strftime('%Y-%m-%d %H:%M:%S')
+			except ValueError:
+				if date_time:
 					result["time"] = date_time
-			
-			# 8. Author
-			author = exif.get('Artist')
+
+		# 8. Author
+		author = exif.get('Artist')
+		if author:
+			author = _to_text(author)
 			if author:
-				try:
-					author = author.decode(errors="ignore")
-				except:
-					author = author.decode('utf-8', 'ignore')
 				result["author"] = author
-			
+
 	except Exception as e:
 		result["error"] = str(e)
-		
+
 	return result
 
 if __name__ == "__main__":
@@ -158,7 +167,7 @@ if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		image_path = sys.argv[1]
 		info = get_exif_info(image_path)
-		
+
 		print(json.dumps(info, indent=2, ensure_ascii=False, default=json_serializable))
 	else:
 		print("Usage: python exif_api.py <image file path>")

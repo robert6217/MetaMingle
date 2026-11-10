@@ -14,6 +14,11 @@ MetaMingle is a powerful Python application for adding professional watermarks w
   - Aperture, shutter speed, ISO
   - Focal length
   - Capture date/time
+- **Instagram-ready output**:
+  - **Orientation aware**: portrait and square photos become 4:5, landscape photos become 5:4 (either can be forced)
+  - **IG crop / canvas**: the photo is either cropped so that photo + border fill the canvas exactly, or centred uncropped on a white 4:5 / 5:4 canvas
+  - **1080 px export**: results are downscaled to 1080 x 1350 px (portrait) or 1080 x 864 px (landscape)
+  - **Batch export**: process a whole folder with the same settings
 - **Custom Logo Support**: Add your favorite camera brand logos
 - **Proportional Sizing**: All elements scale proportionally based on image dimensions
 - **User-Friendly GUI**: Visual previews and intuitive controls
@@ -49,22 +54,33 @@ python metamingle_gui.py
 The GUI provides:
 
 - Image selection
+- Crop modes: IG auto (4:5 for portrait, 5:4 for landscape photos), IG 4:5, IG 5:4, 3:2, 1:1 or no crop. "Adjust Crop..." opens a window where the
+  crop box can be moved, resized by its corners or with the mouse wheel, with a rule-of-thirds grid
 - Logo selection dropdown
-- Preview template options (Bottom, Full Frame, Classic)
-- Preview generation
+- Template options (Bottom Only, Full Frame, Classic)
+- Output options: IG canvas (4:5 or 5:4, chosen from the photo's orientation) or original ratio, optional resize to 1080 px wide
+- Live preview with an indicator showing whether the result is exactly 4:5 or 5:4
 - Image saving with custom filename
+- Batch export of several photos (each photo is cropped around its centre)
 
 ### Command-Line Interface
 
 For batch processing or scripting, use the command-line interface:
 
 ```bash
-python metamingle.py IMAGE_PATH [OPTIONS]
+python metamingle.py IMAGE [IMAGE ...] [OPTIONS]
 ```
+
+`IMAGE` can be one or more image files and/or folders.
 
 #### Options:
 
-- `-o, --output`: Output file path
+- `-o, --output`: Output file path (single image) or output folder (several images / a folder)
+- `--ig`: Instagram preset, same as `--crop ig --canvas ig --width 1080` (portrait photos become 4:5, landscape photos 5:4)
+- `--crop`: Centred crop before watermarking: `ig` (photo + border = exactly 4:5 or 5:4), a ratio such as `3:2`, or `none` (default)
+- `--canvas`: `ig` = 4:5 for portrait and 5:4 for landscape photos, `4:5` / `5:4` force one of them, `auto` pads only portrait/square photos to 4:5 (default), `original` never pads
+- `--width`: Downscale the result to this width in pixels (never upscales)
+- `--suffix`: File name suffix for batch output (default: `_watermarked`, or `_IG` with `--ig`)
 - `-l, --logo`: Path to the camera logo image
 - `-t, --template`: Watermark template style (`full_frame`, `bottom_only`, or `classic`)
 - `-br, --border-ratio`: Border ratio (default: 35)
@@ -78,6 +94,18 @@ python metamingle.py IMAGE_PATH [OPTIONS]
 
 ```bash
 python metamingle.py photo.jpg -l logo/canon.png -t classic -c "0,0,0"
+```
+
+Instagram post (portrait 1080 x 1350 or landscape 1080 x 864, photo fills the frame). Add `--canvas 4:5` to force a portrait cover from a landscape photo:
+
+```bash
+python metamingle.py photo.jpg --ig -l logo/FUJIFILM.png
+```
+
+Whole folder, keeping each photo uncropped on its IG canvas:
+
+```bash
+python metamingle.py ./photos --canvas ig --width 1080 -o ./photos/ig
 ```
 
 ## Configuration Details
