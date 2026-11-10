@@ -51,17 +51,20 @@ Run the graphical user interface for interactive watermarking:
 python metamingle_gui.py
 ```
 
+Drag & drop needs the `tkinterdnd2` package (included in `requirements.txt`). Without it the program still works, photos are then added with the "Add Photos..." button.
+
 The GUI provides:
 
-- Image selection
+- Drag & drop: drop photos or whole folders onto the preview or the thumbnail strip (or use "Add Photos...")
+- Multiple photos: a thumbnail strip under the preview; click a thumbnail to edit that photo, use the Left / Right keys to step through them
+- Every photo keeps its own settings. Ctrl / Shift + click selects several photos and the controls on the left then change all of them; "Apply These Settings to All Photos" copies the current photo's settings to every photo
 - Crop modes: IG auto (4:5 for portrait, 5:4 for landscape photos), IG 4:5, IG 5:4, 3:2, 1:1 or no crop. "Adjust Crop..." opens a window where the
   crop box can be moved, resized by its corners or with the mouse wheel, with a rule-of-thirds grid
 - Logo selection dropdown
 - Template options (Bottom Only, Full Frame, Classic)
 - Output options: IG canvas (4:5 or 5:4, chosen from the photo's orientation) or original ratio, optional resize to 1080 px wide
 - Live preview with an indicator showing whether the result is exactly 4:5 or 5:4
-- Image saving with custom filename
-- Batch export of several photos (each photo is cropped around its centre)
+- "Save Current..." saves the photo shown in the preview, "Export All..." writes every loaded photo to a folder, each with its own settings and crop
 
 ### Command-Line Interface
 
