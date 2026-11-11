@@ -111,6 +111,29 @@ Whole folder, keeping each photo uncropped on its IG canvas:
 python metamingle.py ./photos --canvas ig --width 1080 -o ./photos/ig
 ```
 
+## Build a Windows .exe
+
+1. Install the dependencies and PyInstaller:
+   ```bash
+   pip install -r requirements.txt pyinstaller
+   ```
+2. Build:
+   ```bash
+   python build_exe.py
+   ```
+   The result is a single file, `dist/MetaMingle.exe` (about 20 MB), that runs on Windows without Python.
+   Use `python build_exe.py --onedir` for a folder build (`dist/MetaMingle/`) that starts faster.
+
+Notes:
+
+- The fonts and every PNG in `./logo` are bundled into the exe. To add logos later without rebuilding,
+  create a `logo` folder next to `MetaMingle.exe` and put PNG files in it (a file with the same name
+  replaces the bundled one).
+- Photos can also be opened by dropping them onto `MetaMingle.exe` or with "Open with".
+- Put an `icon.ico` in the project folder to give the exe an icon.
+- The exe is not code-signed, so Windows SmartScreen may warn the first time it is opened
+  ("More info" -> "Run anyway").
+
 ## Configuration Details
 
 ### Ratio Parameters
@@ -146,9 +169,8 @@ The tool extracts the following EXIF data:
 ## TODO List
 Next improvements planned for MetaMingle:
 
-1. Package as standalone .exe file for easier distribution
-2. Add support for user-updatable fonts
-3. Implement flexible border size adjustment
+1. Add support for user-updatable fonts
+2. Implement flexible border size adjustment
 
 ## Contributing
 

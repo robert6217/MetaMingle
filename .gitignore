@@ -6,3 +6,6 @@ __pycache__/
 *.JPEG
 *.png
 .DS_Store
+build/
+dist/
+*.spec

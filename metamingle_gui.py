@@ -5,7 +5,8 @@ from PIL import Image, ImageTk, ImageOps
 import threading
 import tempfile
 from metamingle import (add_exif_watermark, collect_images, center_crop_box, ig_crop_ratio, ig_target_ratio,
-						IG_WIDTH, IG_RATIO, IG_LANDSCAPE_RATIO)
+						IG_WIDTH, IG_RATIO, IG_LANDSCAPE_RATIO, BASE_DIR, APP_DIR)
+import sys
 import glob
 
 try:
@@ -15,7 +16,6 @@ except Exception:
 	TkinterDnD = None
 	DND_FILES = None
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(tempfile.gettempdir(), "metamingle")
 PREVIEW_TEMP_PATH = os.path.join(TEMP_DIR, "preview_temp.jpg")
 TEMPLATE_BY_MODE = {"full": "full_frame", "classic": "classic", "bottom": "bottom_only"}
@@ -190,16 +190,22 @@ class PhotoWatermarkGUI:
 	def fit_window_to_content(self):
 		"""Make sure every control is visible whatever the font size / display scaling is."""
 		self.root.update_idletasks()
-		needed = self.root.winfo_reqheight() + 40   # room for a two-line status message
-		limit = max(600, self.root.winfo_screenheight() - 80)
-		height = min(max(900, needed), limit)
-		self.root.geometry(f"1240x{height}")
-		self.root.minsize(1000, min(needed, limit))
+		scale = max(1.0, self.root.winfo_fpixels('1i') / 96)   # 1.5 on a 150 % display
+		screen_w, screen_h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+		needed = self.root.winfo_reqheight() + int(40 * scale)   # room for a two-line status message
+		limit = max(600, screen_h - int(80 * scale))
+		height = min(max(int(900 * scale), needed), limit)
+		width = min(int(1240 * scale), screen_w - int(40 * scale))
+		self.root.geometry(f"{width}x{height}")
+		self.root.minsize(min(int(1000 * scale), width), min(needed, limit))
 
 	def get_logo_paths(self):
-		logo_dir = os.path.join(BASE_DIR, "logo")
-		os.makedirs(logo_dir, exist_ok=True)
-		return sorted(glob.glob(os.path.join(logo_dir, "*.png")))
+		"""Bundled logos plus any PNG placed in a "logo" folder next to the program (same name wins)."""
+		by_name = {}
+		for logo_dir in dict.fromkeys((os.path.join(BASE_DIR, "logo"), os.path.join(APP_DIR, "logo"))):
+			for path in glob.glob(os.path.join(logo_dir, "*.png")):
+				by_name[os.path.basename(path)] = path
+		return [by_name[name] for name in sorted(by_name, key=str.lower)]
 
 	# ------------------------------------------------------------------ UI
 
@@ -1123,6 +1129,16 @@ class PhotoWatermarkGUI:
 		else:
 			messagebox.showinfo("Export", message)
 
+def enable_high_dpi():
+	"""Render sharply on Windows displays scaled above 100 % instead of being stretched (blurry)."""
+	if sys.platform != "win32":
+		return
+	try:
+		import ctypes
+		ctypes.windll.shcore.SetProcessDpiAwareness(1)   # system DPI aware; Tk scales fonts to match
+	except Exception:
+		pass
+
 def create_root():
 	"""Create the main window, with drag & drop support when tkinterdnd2 is installed."""
 	if TkinterDnD is not None:
@@ -1133,6 +1149,10 @@ def create_root():
 	return tk.Tk()
 
 if __name__ == '__main__':
+	enable_high_dpi()
 	root = create_root()
 	app = PhotoWatermarkGUI(root)
+	# Files / folders given on the command line (also "Open with" or dropping files onto MetaMingle.exe)
+	if len(sys.argv) > 1:
+		root.after(100, lambda: app.add_paths(sys.argv[1:]))
 	root.mainloop()

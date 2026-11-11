@@ -2,8 +2,20 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from exif_api import get_exif_info
 import io
 import os
+import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def _resource_dir():
+	"""Folder holding the bundled fonts / logos (PyInstaller unpacks them to sys._MEIPASS)."""
+	return getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+
+def _app_dir():
+	"""Folder of the program the user sees: next to MetaMingle.exe, or the source folder."""
+	if getattr(sys, "frozen", False):
+		return os.path.dirname(os.path.abspath(sys.executable))
+	return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = _resource_dir()
+APP_DIR = _app_dir()
 FONT_DIR = os.path.join(BASE_DIR, "font", "Saira_Semi_Condensed")
 TEMPLATE_STYLES = ("bottom_only", "full_frame", "classic")
 CANVAS_MODES = ("auto", "original", "ig", "4:5", "5:4")
