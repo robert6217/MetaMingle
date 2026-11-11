@@ -5,7 +5,7 @@ Build MetaMingle.exe (Windows) with PyInstaller.
     python build_exe.py            # single file:  dist/MetaMingle.exe
     python build_exe.py --onedir   # folder:       dist/MetaMingle/MetaMingle.exe (starts faster)
 
-The fonts and the logos in ./logo are bundled into the exe. Extra logos can be added
+The fonts, the logos in ./logo and icon.ico (see make_icon.py) are bundled into the exe. Extra logos can be added
 later without rebuilding: put PNG files in a "logo" folder next to MetaMingle.exe.
 """
 import os
@@ -51,7 +51,8 @@ def main():
 
 	icon = os.path.join(HERE, "icon.ico")
 	if os.path.isfile(icon):
-		args += ["--icon", icon]
+		args += ["--icon", icon,                   # file icon of MetaMingle.exe
+				 "--add-data", data("icon.ico", ".")]  # window / taskbar icon
 
 	PyInstaller.__main__.run(args)
 	exe = os.path.join(HERE, "dist", *(["MetaMingle"] if onedir else []), "MetaMingle.exe")

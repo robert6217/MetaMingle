@@ -99,6 +99,7 @@ class PhotoWatermarkGUI:
 	def __init__(self, root):
 		self.root = root
 		self.root.title("MetaMingle - IG Layout Editor")
+		self.set_window_icon()
 		self.root.geometry("1240x900")
 		self.root.minsize(1000, 760)
 
@@ -186,6 +187,16 @@ class PhotoWatermarkGUI:
 	def targets(self):
 		"""Photos the left-hand controls apply to: every selected photo."""
 		return [self.items[i] for i in sorted(self.selected) if 0 <= i < len(self.items)]
+
+	def set_window_icon(self):
+		"""Title bar / taskbar icon (icon.ico is bundled into the exe)."""
+		icon = os.path.join(BASE_DIR, "icon.ico")
+		if not os.path.isfile(icon):
+			return
+		try:
+			self.root.iconbitmap(default=icon)   # also used by the crop window and dialogs
+		except tk.TclError:
+			pass   # .ico is not supported on this platform
 
 	def fit_window_to_content(self):
 		"""Make sure every control is visible whatever the font size / display scaling is."""
@@ -1136,6 +1147,12 @@ def enable_high_dpi():
 	try:
 		import ctypes
 		ctypes.windll.shcore.SetProcessDpiAwareness(1)   # system DPI aware; Tk scales fonts to match
+	except Exception:
+		pass
+	try:
+		# Own taskbar entry, so the taskbar shows the MetaMingle icon instead of Python's
+		import ctypes
+		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MetaMingle.IGLayoutEditor")
 	except Exception:
 		pass
 
